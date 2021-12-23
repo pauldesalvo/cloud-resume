@@ -11,4 +11,4 @@
 11. [ ] Provision resources using terraform 
 12. [x] Push code to GitHub repo 
 13. [ ] Write GitHub actions for pushing updates (backend)
-14. [ ] Push website code to separate github repo (frontend)
+14. [x] Push website code to separate github repo (frontend)
