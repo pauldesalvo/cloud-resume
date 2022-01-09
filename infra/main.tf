@@ -17,13 +17,7 @@ provider "aws" {
 resource "aws_s3_bucket" "b" {
     bucket = "my-s3-website-bucket"
     acl = "public-read"
-    policy = file("")
 
-    cors_rule {
-      allowed_headers = ["*"]
-      allowed_methods = ["GET"]
-      max_age_seconds = 3000
-    }
 
     website {
       index_document = "index.html"
