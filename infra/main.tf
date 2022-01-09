@@ -22,15 +22,9 @@ resource "aws_s3_bucket" "b" {
     cors_rule {
       allowed_headers = ["*"]
       allowed_methods = ["GET"]
-      allowed_origins = ["https://mydomain.com"]
-      expose_headers  = ["ETag"]
       max_age_seconds = 3000
     }
-    
-    logging {
-      target_bucket = aws_s3_bucket.log_bucket.id
-      target_prefix = "log/"
-    }
+
     website {
       index_document = "index.html"
       error_document = "error.html"
