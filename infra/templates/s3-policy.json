@@ -7,7 +7,7 @@
           "AWS": "arn:aws:iam::1234567890:root"
         },
         "Action": "s3:ListBucket",
-        "Resource": "arn:aws:s3:::yourdomain-terraform"
+        "Resource": "arn:aws:s3:::mydomain-terraform"
       },
       {
         "Effect": "Allow",
@@ -15,7 +15,7 @@
           "AWS": "arn:aws:iam::1234567890:root"
         },
         "Action": ["s3:GetObject", "s3:PutObject"],
-        "Resource": "arn:aws:s3:::yourdomain-terraform/*"
+        "Resource": "arn:aws:s3:::mydomain-terraform/*"
       }
     ]
   }
