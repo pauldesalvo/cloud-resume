@@ -115,3 +115,18 @@ resource "aws_route53_record" "root-a" {
   }
 }
 
+resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
+  name         = "PageVisits"
+  billing_mode = "PROVISIONED"
+  hash_key     = "PageVisits"
+
+  attribute {
+    name = "PageVisits"
+    type = "N"
+  }
+
+  tags = var.common_tags
+}
+
+
+
