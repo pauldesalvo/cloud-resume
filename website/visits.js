@@ -10,3 +10,6 @@ function incrementAndShowValue() {
     counter++
     setCookie("visitorcounter", counter)
 }
+
+
+
