@@ -3,7 +3,7 @@ name: 'Terraform AWS Infra Plan'
 on:
   push:
     branches:
-    - featurebranch
+    - main
 
 jobs:
   terraform:
