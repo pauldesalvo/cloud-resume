@@ -1,3 +1,5 @@
+#Github Action 
+
 name: 'Terraform'
 on:
   push:
@@ -34,7 +36,7 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
-          with:
+        with:
             github_token: ${{ secret.GITHUB_TOKEN }}
             script: |
               const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
@@ -50,7 +52,7 @@ jobs:
 
               </details>
 
-             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+              *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
 
               github.issues.createComment({
                 issue_number: context.issue.number,
