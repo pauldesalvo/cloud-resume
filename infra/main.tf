@@ -1,23 +1,8 @@
 #AWS Infrastructure
-terraform {
-  required_version = "1.1.4"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 3.27"
-    }
-  }
-}
-provider "aws" {
-  region                  = "us-west-1"
-  shared_credentials_file = "~/.aws/crendtials"
-}
-
 resource "aws_s3_bucket" "resume_www_bucket" {
   bucket = "www.${var.bucket_name}"
   acl    = "public-read"
-  policy = templatefile("templates/s3-policy.json", { bucket = "www.${var.bucket_name}" })
+  policy = templatefile("~/cloud-resume/infra/s3-policy.json", { bucket = "www.${var.bucket_name}" })
 
   cors_rule {
     allowed_headers = ["Authorization", "Content-Length"]
@@ -31,7 +16,6 @@ resource "aws_s3_bucket" "resume_www_bucket" {
     #error_document = "error.html"
   }
 
-  tags = var.common_tags
 }
 
 resource "aws_acm_certificate" "ssl_certificate" {
@@ -39,7 +23,7 @@ resource "aws_acm_certificate" "ssl_certificate" {
   validation_method         = "EMAIL"
   subject_alternative_names = ["*.${var.domain_name}"]
 
-  tags = var.common_tags
+
 
   lifecycle {
     create_before_destroy = true
@@ -95,13 +79,11 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
     minimum_protocol_version = "TLSv1.2_2019"
   }
 
-  tags = var.common_tags
 
 }
 
 resource "aws_route53_zone" "main" {
   name = var.domain_name
-  tags = var.common_tags
 }
 
 resource "aws_route53_record" "root-a" {
@@ -120,13 +102,13 @@ resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
   name         = "PageVisits"
   billing_mode = "PROVISIONED"
   hash_key     = "PageVisits"
+  read_capacity = 1
+  write_capacity = 1
 
   attribute {
     name = "PageVisits"
     type = "N"
   }
-
-  tags = var.common_tags
 }
 
 
