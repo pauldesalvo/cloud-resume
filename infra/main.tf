@@ -1,8 +1,16 @@
 #AWS Infrastructure
-resource "aws_s3_bucket" "resume_www_bucket" {
-  bucket = "www.${var.bucket_name}"
+resource "aws_s3_bucket" "resume-pauldesalvo-bucket" {
+  bucket = var.bucket_name
+  policy = templatefile("~/cloud-resume/infra/s3-policy.json", { bucket = "${var.bucket_name}" })
+}
+
+resource "aws_s3_bucket_acl" "resume-pauldesalvo-bucket-acl" {
+  bucket = aws_s3_bucket.resume-pauldesalvo-bucket.id
   acl    = "public-read"
-  policy = templatefile("~/cloud-resume/infra/s3-policy.json", { bucket = "www.${var.bucket_name}" })
+}
+
+resource "aws_s3_bucket_cors_configuration" "cors-config-resume-pauldesalvo-bucket" {
+  bucket = aws_s3_bucket.resume-pauldesalvo-bucket.bucket
 
   cors_rule {
     allowed_headers = ["Authorization", "Content-Length"]
@@ -10,14 +18,19 @@ resource "aws_s3_bucket" "resume_www_bucket" {
     allowed_origins = ["https://www.${var.domain_name}"]
     max_age_seconds = 3000
   }
-
-  website {
-    index_document = "index.html"
-    #error_document = "error.html"
-  }
-
 }
 
+resource "aws_s3_bucket_website_configuration" "resume-website" {
+  bucket = aws_s3_bucket.resume-pauldesalvo-bucket.bucket
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  #error_document {
+  # suffix = "error.html"
+  #}
+}
 resource "aws_acm_certificate" "ssl_certificate" {
   domain_name               = "pauldesalvo.net"
   validation_method         = "EMAIL"
@@ -37,7 +50,14 @@ resource "aws_acm_certificate_validation" "cert_validation" {
 resource "aws_cloudfront_distribution" "s3_distribution" {
   origin {
     domain_name = "pauldesalvo.net"
-    origin_id   = "S3-www.${var.bucket_name}"
+    origin_id   = "${var.bucket_name}.s3-website-us-east-1.amazonaws.com"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
   }
 
   enabled             = true
@@ -51,7 +71,7 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-www.${var.bucket_name}"
+    target_origin_id = "${var.bucket_name}.s3-website-us-east-1.amazonaws.com"
 
     forwarded_values {
       query_string = false
@@ -86,6 +106,8 @@ resource "aws_route53_zone" "main" {
   name = var.domain_name
 }
 
+
+
 resource "aws_route53_record" "root-a" {
   zone_id = aws_route53_zone.main.zone_id
   name    = var.domain_name
@@ -99,10 +121,10 @@ resource "aws_route53_record" "root-a" {
 }
 
 resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
-  name         = "PageVisits"
-  billing_mode = "PROVISIONED"
-  hash_key     = "PageVisits"
-  read_capacity = 1
+  name           = "PageVisits"
+  billing_mode   = "PROVISIONED"
+  hash_key       = "PageVisits"
+  read_capacity  = 1
   write_capacity = 1
 
   attribute {
