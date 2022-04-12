@@ -1,7 +1,11 @@
 #AWS Infrastructure
 resource "aws_s3_bucket" "resume-pauldesalvo-bucket" {
   bucket = var.bucket_name
-  policy = templatefile("~/cloud-resume/infra/s3-policy.json", { bucket = "${var.bucket_name}" })
+}
+
+resource "aws_s3_bucket_policy" "read_resume_website" {
+  bucket = aws_s3_bucket.resume-pauldesalvo-bucket.id
+  policy = data.aws_iam_policy_document.s3_policy.json
 }
 
 resource "aws_s3_bucket_acl" "resume-pauldesalvo-bucket-acl" {
@@ -13,12 +17,23 @@ resource "aws_s3_bucket_cors_configuration" "cors-config-resume-pauldesalvo-buck
   bucket = aws_s3_bucket.resume-pauldesalvo-bucket.bucket
 
   cors_rule {
-    allowed_headers = ["Authorization", "Content-Length"]
+    allowed_headers = ["Authorization"]
     allowed_methods = ["GET"]
-    allowed_origins = ["https://www.${var.domain_name}"]
+    allowed_origins = ["*"]
+    expose_headers = ["Access-Control-Allow-Origin"]
     max_age_seconds = 3000
   }
 }
+
+/*resource "aws_s3_bucket_public_access_block" "resume-pauldesalvo-bucket" {
+  bucket = var.bucket_name
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = false
+
+}*/
 
 resource "aws_s3_bucket_website_configuration" "resume-website" {
   bucket = aws_s3_bucket.resume-pauldesalvo-bucket.bucket
@@ -45,6 +60,46 @@ resource "aws_acm_certificate" "ssl_certificate" {
 
 resource "aws_acm_certificate_validation" "cert_validation" {
   certificate_arn = aws_acm_certificate.ssl_certificate.arn
+}
+
+resource "aws_cloudfront_origin_access_identity" "s3-bucket-oai" {
+  comment = "s3-bucket-oai"
+}
+
+data "aws_iam_policy_document" "s3_policy" {
+  statement {
+    actions = [
+      "s3:GetObject"
+    ]
+    resources = [
+      aws_s3_bucket.resume-pauldesalvo-bucket.arn,
+      "arn:aws:s3:::${var.bucket_name}/*"
+    ]
+
+    principals {
+      type = "AWS"
+      identifiers = [
+        aws_cloudfront_origin_access_identity.s3-bucket-oai.iam_arn
+      ]
+    }
+  }
+
+/*  statement {
+    actions = [
+      "s3:ListBucket"
+    ]
+    resources = [
+      aws_s3_bucket.resume-pauldesalvo-bucket.arn,
+      "arn:aws:s3:::${var.bucket_name}/*"
+    ]
+
+    principals {
+      type = "AWS"
+      identifiers = [
+        aws_cloudfront_origin_access_identity.s3-bucket-oai.iam_arn
+      ]
+    }
+  }*/
 }
 
 resource "aws_cloudfront_distribution" "s3_distribution" {
