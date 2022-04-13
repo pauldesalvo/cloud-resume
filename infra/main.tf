@@ -20,7 +20,7 @@ resource "aws_s3_bucket_cors_configuration" "cors-config-resume-pauldesalvo-buck
     allowed_headers = ["Authorization"]
     allowed_methods = ["GET"]
     allowed_origins = ["*"]
-    expose_headers = ["Access-Control-Allow-Origin"]
+    expose_headers  = ["Access-Control-Allow-Origin"]
     max_age_seconds = 3000
   }
 }
@@ -84,7 +84,7 @@ data "aws_iam_policy_document" "s3_policy" {
     }
   }
 
-/*  statement {
+  /*  statement {
     actions = [
       "s3:ListBucket"
     ]
@@ -119,7 +119,7 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
   is_ipv6_enabled     = true
   default_root_object = "index.html"
 
-  aliases = ["www.${var.domain_name}"]
+  aliases = ["pauldesalvo.net"]
 
   #Add custom_error_response
 
@@ -188,5 +188,30 @@ resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
   }
 }
 
+/*resource "aws_iam_role" "lambda-iam-role" {
+  name               = "lambda-iam-role"
+  assume_role_policy = <<EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": "lambda.amazonaws.com"
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
+  }
+  EOF
+}
 
+/*resource "aws_lambda_function" "dyno-lambda" {
+  function_name = "dyno-lambda"
+  role          = aws_iam_role.lambda-iam-role.arn
+  handler       = "index.lambda_handler"
+  runtime       = "python3.9"
+}
+*/
 
