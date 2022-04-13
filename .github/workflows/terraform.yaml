@@ -20,12 +20,15 @@ jobs:
       
       - name: Terraform Init
         id: init
+        uses: actions/checkout@main
         run: terraform init
       
       - name: Terraform Plan
         id: plan
+        uses: actions/checkout@main 
         run: terraform plan
       
       - name: Terraform Apply
         id: apply
+        uses: actions/checkout@main
         run: terraform apply --auto-approve
