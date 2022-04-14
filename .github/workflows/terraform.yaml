@@ -8,27 +8,39 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.aws_access_key }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.aws_secret_key }}
 jobs:
-  build:
-    name: build
+  terraform:
+    name: 'Terraform'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@main
+        uses: actions/checkout@v3 
        
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v1
       
+      - name: Terraform Fmt
+        id: fmt
+        uses: terraform fmt -check
+      
       - name: Terraform Init
         id: init
-        uses: actions/checkout@main
         run: terraform init
-      
+
+      - name: Terraform Validate
+        id: validate  
+        run: terraform validate -no-color  
+
       - name: Terraform Plan
         id: plan
-        uses: actions/checkout@main 
-        run: terraform plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color -input=false
+        continue-on-error: true
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
       
       - name: Terraform Apply
         id: apply
-        uses: actions/checkout@main
-        run: terraform apply --auto-approve
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply --auto-approve -input=false
