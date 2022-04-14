@@ -214,5 +214,3 @@ resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
   runtime       = "python3.9"
 }
 */
-
-//add comment
