@@ -19,7 +19,7 @@ resource "aws_s3_bucket_cors_configuration" "cors-config-resume-pauldesalvo-buck
   cors_rule {
     allowed_headers = ["Authorization"]
     allowed_methods = ["GET"]
-    allowed_origins = ["*"]
+    allowed_origins = ["pauldesalvo.net"]
     expose_headers  = ["Access-Control-Allow-Origin"]
     max_age_seconds = 3000
   }
@@ -104,14 +104,17 @@ data "aws_iam_policy_document" "s3_policy" {
 
 resource "aws_cloudfront_distribution" "s3_distribution" {
   origin {
-    domain_name = "pauldesalvo.net"
+    domain_name = aws_s3_bucket.resume-pauldesalvo-bucket.bucket_domain_name
     origin_id   = "${var.bucket_name}.s3-website-us-east-1.amazonaws.com"
 
-    custom_origin_config {
+    /*custom_origin_config {
       http_port              = 80
       https_port             = 443
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
+    }*/
+    s3_origin_config {
+      origin_access_identity = aws_cloudfront_origin_access_identity.s3-bucket-oai.cloudfront_access_identity_path
     }
   }
 
@@ -179,38 +182,45 @@ resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
   name           = "PageVisits"
   billing_mode   = "PROVISIONED"
   hash_key       = "PageVisits"
+  range_key      = "VisitCount"
   read_capacity  = 1
   write_capacity = 1
 
   attribute {
     name = "PageVisits"
-    type = "N"
+    type = "S"
+  }
+
+  attribute {
+    name = "VisitCount"
+    type = "S"
   }
 }
 
-/*resource "aws_iam_role" "lambda-iam-role" {
-  name               = "lambda-iam-role"
-  assume_role_policy = <<EOF
-  {
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Action": "sts:AssumeRole",
-        "Principal": {
-          "Service": "lambda.amazonaws.com"
-        },
-        "Effect": "Allow",
-        "Sid": ""
-      }
-    ]
-  }
-  EOF
+/*resource "aws_iam_role_policy" "lambda_policy" {
+  name   = "lambda_policy"
+  role   = aws_iam_role.iam_for_lambda.id
+  policy = file("policy.json")
 }
 
-/*resource "aws_lambda_function" "dyno-lambda" {
-  function_name = "dyno-lambda"
-  role          = aws_iam_role.lambda-iam-role.arn
-  handler       = "index.lambda_handler"
-  runtime       = "python3.9"
+resource "aws_iam_role" "iam_for_lambda" {
+  name               = "iam_for_lambda"
+  assume_role_policy = file("assume_role_policy.json")
+
+}
+
+resource "aws_lambda_function" "dynodb-lambda-function" {
+  function_name = "lambda-dyno"
+  filename      = "lambda_function.zip"
+  role          = aws_iam_role.iam_for_lambda.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.8"
+}
+
+data "archive_file" "lambda_function" {
+  type             = "zip"
+  source_file      = "~/cloud-resume/infra/lambda_function.py"
+  output_file_mode = "0666"
+  output_path      = "~/cloud-resume/infra/lambda_function.zip"
 }
 */
