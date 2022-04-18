@@ -1,15 +1,18 @@
-incrementAndShowValue();
-
-function incrementAndShowValue() {
-    var value = getCookie("visitorcoutner") || 0;
-    var newValue = ("0000" + (Number(value) +1)).slice(-6);
-    var container = document.getElementById("counterVisitor");
-    String(newValue).split("").forEach(function(item, index) {
-        container.children[index].innerHTML = item;
-    });
-    counter++
-    setCookie("visitorcounter", counter)
+function getLoadCount(){
+  var req = new XMLHttpRequest();
+  req.open('GET', 'API Gateway URL', false);
+  req.send();
+  if(req.status == 200){
+    len = req.responseText.length;
+    console.log(req.responseText.substring(1, len-1));
+    document.getElementById("loadcount").textContent = req.responseText.substring(10, len-2);
+  }
+  else {
+    //Not 200 HTTP code
+    console.log(req.status)
+  }
 }
-
-
+window.onload = function(){
+  getLoadCount();
+};
 
