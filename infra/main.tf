@@ -197,31 +197,30 @@ resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
   }
 }
 
-/*resource "aws_iam_role_policy" "lambda_policy" {
-  name   = "lambda_policy"
-  role   = aws_iam_role.iam_for_lambda.id
-  policy = file("policy.json")
-}
-
 resource "aws_iam_role" "iam_for_lambda" {
   name               = "iam_for_lambda"
-  assume_role_policy = file("assume_role_policy.json")
-
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement":  [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF  
 }
 
 resource "aws_lambda_function" "dynodb-lambda-function" {
   function_name = "lambda-dyno"
-  filename      = "lambda_function.zip"
+  filename      = "~/cloud-resume/api/lambda.zip"
   role          = aws_iam_role.iam_for_lambda.arn
-  handler       = "lambda_function.lambda_handler"
+  handler       = "lambda.handler"
   runtime       = "python3.8"
 }
 
-data "archive_file" "lambda_function" {
-  type             = "zip"
-  source_file      = "~/cloud-resume/infra/lambda_function.py"
-  output_file_mode = "0666"
-  output_path      = "~/cloud-resume/infra/lambda_function.zip"
-}
-*/
-// test comment
