@@ -8,7 +8,7 @@
 	<meta name="keywords" content="" />
 	<meta name="description" content="" />
 
-	<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/reset-fonts-grids/reset-fonts-grids.css" media="all" /> 
+	<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/reset-fonts-grids/reset-fonts-grids.css" media="all" /> >-->
 	<link rel="stylesheet" type="text/css" href="style.css" media="all" />
 
 </head>
@@ -110,28 +110,16 @@
 		<footer>
 			<script>
 				function getLoadCount(){
-					var req = new XMLHttpRequest();
-					req.open('GET', 'API Gateway URL', false);
-					req.send();
-					if(req.status == 200){
-						len = req.responseText.length;
-						console.log(req.responseText.substring(1, len-1));
-						document.getElementById("loadcount").textContent = req.responseText.substring(10, len-2);
-					}
-					else {
-						//Not 200 HTTP code
-						console.log(req.status)
-					}
+					fetch('https://qe3ljo9gz9.execute-api.us-east-1.amazonaws.com/*')
+					.then(response => response.json())
+					.then(data => {
+						document.getElementById('visitCount').innerHTML = data.loadCount;
 				}
-				window.onload = function(){
-					getLoadCount();
-				};
 			</script>
 			<p>Paul De Salvo &mdash; <a href="mailto:desalvopaulj@gmail.com">desalvopaulj@gmail.com</a> &mdash; (310) - 339-5309<br/>
-				Page Visits: <span id="loadcount">Not Available</span><br/>
+				Page Visits: <span id="visitCount"></span><br/>
 			</p>
 		</footer><!-- // inner -->
 </div><!--// doc -->
 </body>
 </html>
-
