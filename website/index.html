@@ -109,17 +109,18 @@
 		</div><!--// bd -->
 		<footer>
 			<script>
-				function getLoadCount(){
-					fetch('https://qe3ljo9gz9.execute-api.us-east-1.amazonaws.com/*')
+				fetch('https://ydnokzl6e2.execute-api.us-east-1.amazonaws.com/prod')
 					.then(response => response.json())
-					.then(data => {
-						document.getElementById('visitCount').innerHTML = data.loadCount;
-				}
+					.then((data) => {
+						document.getElementById('visits').innerHTML = data.body
+					})
 			</script>
 			<p>Paul De Salvo &mdash; <a href="mailto:desalvopaulj@gmail.com">desalvopaulj@gmail.com</a> &mdash; (310) - 339-5309<br/>
-				Page Visits: <span id="visitCount"></span><br/>
+				Page Visits: 
+				<span id='visits'></span>
 			</p>
 		</footer><!-- // inner -->
 </div><!--// doc -->
 </body>
 </html>
+					

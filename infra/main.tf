@@ -46,7 +46,7 @@ resource "aws_s3_bucket_website_configuration" "resume-website" {
   # suffix = "error.html"
   #}
 }
-resource "aws_acm_certificate" "ssl_certificate" {
+resource "aws_acm_certificate" "main_website_ssl_certificate" {
   domain_name               = "pauldesalvo.net"
   validation_method         = "EMAIL"
   subject_alternative_names = ["*.${var.domain_name}"]
@@ -58,8 +58,21 @@ resource "aws_acm_certificate" "ssl_certificate" {
   }
 }
 
-resource "aws_acm_certificate_validation" "cert_validation" {
-  certificate_arn = aws_acm_certificate.ssl_certificate.arn
+resource "aws_acm_certificate" "api_ssl_cert" {
+  domain_name       = "api.pauldesalvo.net"
+  validation_method = "EMAIL"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "main_website_cert_validation" {
+  certificate_arn = aws_acm_certificate.main_website_ssl_certificate.arn
+}
+
+resource "aws_acm_certificate_validation" "api_cert_validation" {
+  certificate_arn = aws_acm_certificate.api_ssl_cert.arn
 }
 
 resource "aws_cloudfront_origin_access_identity" "s3-bucket-oai" {
@@ -152,7 +165,7 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
     }
   }
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate_validation.cert_validation.certificate_arn
+    acm_certificate_arn      = aws_acm_certificate_validation.main_website_cert_validation.certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2019"
   }
@@ -163,7 +176,6 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
 resource "aws_route53_zone" "main" {
   name = var.domain_name
 }
-
 
 
 resource "aws_route53_record" "root-a" {
@@ -182,7 +194,6 @@ resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
   name           = "PageVisits"
   billing_mode   = "PROVISIONED"
   hash_key       = "PageVisits"
-  range_key      = "VisitCount"
   read_capacity  = 1
   write_capacity = 1
 
@@ -190,11 +201,12 @@ resource "aws_dynamodb_table" "website-visits-dynamodb-table" {
     name = "PageVisits"
     type = "S"
   }
+}
 
-  attribute {
-    name = "VisitCount"
-    type = "S"
-  }
+resource "aws_iam_role_policy" "policy_for_lambda" {
+  name   = "Lambda-dynodb-role"
+  role   = aws_iam_role.iam_for_lambda.id
+  policy = file("~/cloud-resume/infra/iam-roles/policy.json")
 }
 
 resource "aws_iam_role" "iam_for_lambda" {
@@ -220,23 +232,114 @@ data "archive_file" "lambda-zip" {
   type        = "zip"
   output_path = "/tmp/lambda_zip_file.zip"
   source {
-    content = file("~/cloud-resume/infra/lambda/lambda.py")
+    content  = file("~/cloud-resume/infra/lambda/lambda.py")
     filename = "lambda.py"
   }
 }
 
-resource "aws_lambda_function" "dynodb-lambda-function" {
-  function_name    = "dynodb-lambda-function"
-  filename         = "${data.archive_file.lambda-zip.output_path}"
+resource "aws_lambda_function" "lambda" {
+  function_name    = "lambda"
+  filename         = data.archive_file.lambda-zip.output_path
   role             = aws_iam_role.iam_for_lambda.arn
-  handler          = "dynodb-lambda-function.lambda_handler"
-  source_code_hash = "${data.archive_file.lambda-zip.output_base64sha256}"
+  handler          = "lambda.lambda_handler"
+  source_code_hash = data.archive_file.lambda-zip.output_base64sha256
   runtime          = "python3.8"
 }
 
+resource "aws_lambda_permission" "rest-api-lambda" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "arn:aws:execute-api:${var.myregion}:${local.account_id}:${aws_api_gateway_rest_api.rest-api.id}/*/${aws_api_gateway_method.rest_api_get_method.http_method}${aws_api_gateway_resource.rest_api_resource.path}"
+}
+
+resource "aws_api_gateway_rest_api" "rest-api" {
+  name = "cloud-resume-rest-api"
+}
+
+resource "aws_api_gateway_resource" "rest_api_resource" {
+  rest_api_id = aws_api_gateway_rest_api.rest-api.id
+  parent_id   = aws_api_gateway_rest_api.rest-api.root_resource_id
+  path_part   = "visitors"
+}
+
+resource "aws_api_gateway_method" "rest_api_get_method" {
+  rest_api_id   = aws_api_gateway_rest_api.rest-api.id
+  resource_id   = aws_api_gateway_resource.rest_api_resource.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "lambda" {
+  rest_api_id = aws_api_gateway_rest_api.rest-api.id
+  resource_id = aws_api_gateway_resource.rest_api_resource.id
+  http_method = aws_api_gateway_method.rest_api_get_method.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.lambda.invoke_arn
+}
+
+resource "aws_api_gateway_method_response" "response_200" {
+  rest_api_id = aws_api_gateway_rest_api.rest-api.id
+  resource_id = aws_api_gateway_resource.rest_api_resource.id
+  http_method = aws_api_gateway_method.rest_api_get_method.http_method
+  status_code = "200"
+}
+
+resource "aws_api_gateway_integration_response" "LambdaIntegrationResponse" {
+  rest_api_id = aws_api_gateway_rest_api.rest-api.id
+  resource_id = aws_api_gateway_resource.rest_api_resource.id
+  http_method = aws_api_gateway_method.rest_api_get_method.http_method
+  status_code = aws_api_gateway_method_response.response_200.status_code
+}
+
+/*resource "aws_api_gateway_deployment" "rest_api_deployment" {
+  rest_api_id = aws_api_gateway_rest_api.rest-api.id
+
+  depends_on = [
+    "aws_api_gateway_integration.lambda",
+    "aws_api_gateway_method.method",
+    "aws_api_gateway_integration.integration"
+  ]
+
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.rest_api_resource.id,
+      aws_api_gateway_method.rest_api_get_method.id,
+      aws_api_gateway_integration.lambda.id
+    ]))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}*/
+
+/*resource "aws_api_gateway_stage" "prod" {
+  deployment_id = aws_api_gateway_deployment.rest_api_deployment.id
+  rest_api_id   = aws_api_gateway_rest_api.rest-api.id
+  stage_name    = "prod"
+}*/
+#complete rest api gateway integration and deployment 
+
+resource "aws_api_gateway_method" "proxy_root" {
+  rest_api_id   = aws_api_gateway_rest_api.rest-api.id
+  resource_id   = aws_api_gateway_rest_api.rest-api.root_resource_id
+  http_method   = "GET"
+  authorization = "NONE"
+}
 resource "aws_apigatewayv2_api" "lambda-api" {
   name          = "v2-http-api"
   protocol_type = "HTTP"
+  cors_configuration {
+    allow_origins = ["https://www.pauldesalvo.net"]
+    allow_methods = ["GET"]
+    allow_headers = ["content-type"]
+    max_age       = 300
+  }
 }
 
 resource "aws_apigatewayv2_stage" "lambda-stage" {
@@ -249,23 +352,44 @@ resource "aws_apigatewayv2_integration" "lambda-integration" {
   api_id               = aws_apigatewayv2_api.lambda-api.id
   integration_type     = "AWS_PROXY"
   integration_method   = "POST"
-  integration_uri      = aws_lambda_function.dynodb-lambda-function.invoke_arn
+  integration_uri      = aws_lambda_function.lambda.invoke_arn
   passthrough_behavior = "WHEN_NO_MATCH"
 }
 
+resource "aws_apigatewayv2_domain_name" "api_custom_domain" {
+  domain_name = "api.pauldesalvo.net"
+
+  domain_name_configuration {
+    certificate_arn = aws_acm_certificate.api_ssl_cert.arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+}
+
+/*resource "aws_apigatewayv2_integration_response" "integration-response" {
+  api_id = aws_apigatewayv2_api.lambda-api.id
+  integration_id = aws_apigatewayv2_integration.lambda-integration.id
+  integration_response_key = "/200/"
+}*/
+
 resource "aws_apigatewayv2_route" "lambda_route" {
   api_id    = aws_apigatewayv2_api.lambda-api.id
-  route_key = "GET /{proxy+}"
+  route_key = "GET /visitors"
   target    = "integrations/${aws_apigatewayv2_integration.lambda-integration.id}"
 }
+
+/*resource "aws_apigatewayv2_route_response" "route-response" {
+  api_id = aws_apigatewayv2_api.lambda-api.id
+  route_id = aws_apigatewayv2_route.lambda_route.id
+  route_response_key = "$default"
+}*/
 
 resource "aws_lambda_permission" "api-gw" {
   statement_id  = "AllowedExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.dynodb-lambda-function.arn
+  function_name = aws_lambda_function.lambda.arn
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.lambda-api.execution_arn}/*/*/*"
-
+  source_arn    = "${aws_apigatewayv2_api.lambda-api.execution_arn}/*"
 }
 
 

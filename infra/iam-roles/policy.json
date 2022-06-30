@@ -1,0 +1,12 @@
+{  
+    "Version": "2012-10-17",
+    "Statement":[{
+      "Effect": "Allow",
+      "Action": [
+       "dynamodb:GetItem",
+       "dynamodb:UpdateItem"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:060313730244:table/PageVisits"
+     }
+    ]
+  }
